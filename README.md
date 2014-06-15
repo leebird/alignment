@@ -27,6 +27,26 @@ Usage
 	12345678|||
 	1234||78901
 
+Memory Usage
+------------
+Use `/usr/bin/time -v` to test the two algorithms time and memory usage.  
+Input: A string of length 1400 and another string of length 1426, both encoded in UTF-8.  
+  
+Needleman-Wunsch  
+
+	User time (seconds): 5.43
+	System time (seconds): 0.04
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.48
+	Maximum resident set size (kbytes): 33832
+Hirschberg's  
+
+	User time (seconds): 8.84
+	System time (seconds): 0.00
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:08.89
+	Maximum resident set size (kbytes): 3660
+
 Reference
 ---------
 * http://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm

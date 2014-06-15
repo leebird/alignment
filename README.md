@@ -19,9 +19,8 @@ Usage
 	print a
 	print b
 	print
-^
-	Output:
 
+	Output:
 	12345678|||
 	1234||78901
 

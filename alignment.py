@@ -4,7 +4,7 @@ import operator
 class Alignment(object):
 
     SCORE_UNIFORM = 1
-    SCORE_LENGTH = 2    
+    SCORE_PROPORTION = 2    
 
     def __init__(self,seqa,seqb):
         self.seqa = seqa
@@ -18,8 +18,7 @@ class Alignment(object):
         self.separator = u'|'
         self.mode = Alignment.SCORE_UNIFORM
 
-    def set_score(self,scoreNull=None,scoreSub=None,scoreDel=None,scoreIns=None,
-                  mode=None):
+    def set_score(self,scoreNull=None,scoreSub=None,scoreDel=None,scoreIns=None):
         if scoreNull is not None:
             self.scoreNull = scoreNull
         if scoreSub is not None:
@@ -28,8 +27,6 @@ class Alignment(object):
             self.scoreDel = scoreDel
         if scoreIns is not None:
             self.scoreIns = scoreIns
-        if mode is not None:
-            self.mode = mode
 
     def match(self,a,b):
         if a == b and self.mode == Alignment.SCORE_UNIFORM:
@@ -63,7 +60,6 @@ class Alignment(object):
                     score += self.scoreDel
                 else:
                     score += self.scoreSub
-
         return score
     
     def map_alignment(self,Z,W):
@@ -145,7 +141,9 @@ class Needleman(Alignment):
         
         return alignSeqa,alignSeqb
     
-    def align(self):
+    def align(self,mode=None):
+        if mode is not None:
+            self.mode = mode
         self.init_matrix()
         self.compute_matrix()
         return self.backtrack()
@@ -211,6 +209,8 @@ class Hirschberg(Alignment):
 
         return Z,W
             
-    def align(self):
+    def align(self,mode=None):
+        if mode is not None:
+            self.mode = mode
         return self.align_rec(self.seqa,self.seqb)
                 

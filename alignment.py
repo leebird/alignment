@@ -39,11 +39,17 @@ class Alignment(object):
             return self.scoreSub*len(a)
 
     def delete(self,a):
+        '''
+        deleted elements are on seqa
+        '''
         if self.mode == Alignment.SCORE_UNIFORM:
             return self.scoreDel
         return self.scoreDel*len(a)
 
     def insert(self,a):
+        '''
+        inserted elements are on seqb
+        '''
         if self.mode == Alignment.SCORE_UNIFORM:
             return self.scoreIns
         return self.scoreIns*len(a)

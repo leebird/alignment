@@ -47,6 +47,16 @@ Hirschberg's
 	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:08.89
 	Maximum resident set size (kbytes): 3660
 
+A Trick to Speed up
+-------------------
+Identify the maximum units which you want to align between original and altered text. For example, `[a-zA-Z]+|[0-9]+|\s+|[.,;!\(\)]+`. The alignment might be a little different from the one aligning every character, but it suffices my need and takes much less time. Use Hirschberg's algorithm with this trick on the same two strings,
+
+	 User time (seconds): 1.19
+	 System time (seconds): 0.00
+	 Percent of CPU this job got: 99%
+	 Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.20
+	 Maximum resident set size (kbytes): 3608
+
 Reference
 ---------
 * http://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm

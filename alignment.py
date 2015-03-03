@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import operator
-
+import re
 
 class Alignment(object):
     SCORE_UNIFORM = 1
@@ -16,7 +16,7 @@ class Alignment(object):
         self.score_del = -2
         self.score_ins = -1
         self.separator = u'|'
-        self.mode = Alignment.SCORE_PROPORTION
+        self.mode = Alignment.SCORE_UNIFORM
 
     def set_score(self, score_null=None, score_sub=None, score_del=None, score_ins=None):
         if score_null is not None:
@@ -54,9 +54,9 @@ class Alignment(object):
             return self.score_ins
         return self.score_ins * len(a)
 
-    def score(self, Z, W):
+    def score(self, aligned_seq_a, aligned_seq_b):
         score = 0
-        for a, b in zip(Z, W):
+        for a, b in zip(aligned_seq_a, aligned_seq_b):
             if a == b:
                 score += self.score_null
             else:
@@ -237,9 +237,13 @@ class Hirschberg(Alignment):
 
 class SegmentAlignment(object):
     step = 50
-
+    pattern = re.compile(r'[^|]')
     def __init__(self):
         pass
+
+    @classmethod
+    def char_count(cls, seq):
+        return sum([1 for char in seq if char != '|'])
 
     @classmethod
     def align(cls, seq_a, seq_b):
@@ -259,15 +263,18 @@ class SegmentAlignment(object):
             sub_seq_a = seq_a[curr_a:curr_a + cls.step]
             sub_seq_b = seq_b[curr_b:curr_b + cls.step + diff]
 
-
-            # print(curr_a, curr_b, insert_length)
-            # print(''.join(sub_seq_a), ''.join(sub_seq_b), sep='\n')
-            # print()
-            # print(seq_a, sub_seq_b)
             aligned_sub_a, aligned_sub_b = h.align(sub_seq_a, sub_seq_b)
-            # print(''.join(aligned_sub_a), ''.join(aligned_sub_b), sep='\n')
-            # print()
+            
+            # only takes the first half with good context
+            aligned_sub_a = aligned_sub_a[:int(len(aligned_sub_a)/2)]
+            aligned_sub_b = aligned_sub_b[:int(len(aligned_sub_b)/2)]
+            half_sub_a_len = sum([1 for char in aligned_sub_a if char != '|'])
+            half_sub_b_len = sum([1 for char in aligned_sub_b if char != '|'])
 
+            print(curr_a, curr_b, insert_length)
+            print(''.join(sub_seq_a), ''.join(sub_seq_b), sep='\n')
+            print(''.join(aligned_sub_a), ''.join(aligned_sub_b), sep='\n')
+            print()
 
             insert_length = 0
             for char in aligned_sub_a[::-1]:
@@ -279,8 +286,13 @@ class SegmentAlignment(object):
             aligned_a += aligned_sub_a[:len(aligned_sub_a) - insert_length]
             aligned_b += aligned_sub_b[:len(aligned_sub_b) - insert_length]
 
-            curr_a += len(sub_seq_a)
-            curr_b += len(sub_seq_b) - insert_length
+            # curr_a += len(sub_seq_a)
+            # curr_b += len(sub_seq_b) - insert_length
+            
+            curr_a += half_sub_a_len
+            curr_b += half_sub_b_len - insert_length
+            
+            diff = abs(len_a - curr_a - (len_b - curr_b))
 
         if curr_b < len_b:
             aligned_a += ['|'] * (len_b - curr_b)
@@ -300,6 +312,8 @@ def test():
 
     for root, _, files in os.walk('data/raw'):
         for f in files:
+            if f != 'PMID-71.txt':
+                continue
             raw_text_file = open(os.path.join(root, f), 'r')
             raw_text = raw_text_file.read()
             raw_text_file.close()
@@ -315,7 +329,7 @@ def test():
             print(f, ha == sa, hb == sb)
 
             res = open('data/aligned/' + f, 'w')
-            res.write(''.join(ha) + '\n' + ''.join(hb) + '\n')
+            res.write(''.join(ha) + '\n' + ''.join(hb) + '\n\n')
             res.write(''.join(sa) + '\n' + ''.join(sb))
             res.close()
 

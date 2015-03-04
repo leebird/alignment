@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 class Alignment(object):
     SCORE_UNIFORM = 1
     SCORE_PROPORTION = 2
@@ -86,7 +87,6 @@ class Needleman(Alignment):
         super(Needleman, self).__init__(*args)
         self.semiglobal = False
         self.matrix = None
-        self.semi_end = True
 
     def init_matrix(self):
         rows = self.len_a + 1
@@ -186,7 +186,7 @@ class Needleman(Alignment):
         self.semiglobal = semiglobal
 
         # 0: left-end 0-penalty, 1: right-end 0-penalty, 2: both ends 0-penalty
-        self.semi_end = semi_end
+        # self.semi_end = semi_end
 
         if mode is not None:
             self.mode = mode
@@ -268,7 +268,7 @@ class Hirschberg(Alignment):
         return self.align_rec(self.seq_a, self.seq_b)
 
 
-class SegmentAlignment(object):
+class SegmentAlignment(Alignment):
     step = 50
 
     def __init__(self):
@@ -303,7 +303,10 @@ class SegmentAlignment(object):
 
         len_a = len(seq_a)
         len_b = len(seq_b)
-        diff = abs(len_a - len_b)
+
+        # use a fixed length diff, see comment below
+        # diff = abs(len_a - len_b)
+        diff = cls.step
 
         curr_a = 0
         curr_b = 0
@@ -368,6 +371,13 @@ class SegmentAlignment(object):
                  ) AB - ||Total RNA was isolated from A3.01 T cells using RNeasy mini kit
                 """
 
+                """ the starting gap is a problem
+                mouse IgG1. Afterward, the sections were washed an
+                IgG1 . Afterward , the sections were washed and in the case of PROTEIN74N staining a blocking step with an unconjugated mouse IgG1 mAb was used . Finally , the sections were stained with Alexa Fluor 488-conjugated mouse IgG1 mAb to human PROTEIN78N (eBioscience) or the corresponding isotype control . Tissue sections were stained with DAPI for the demonstration of nuclei and mounted with Prolong antifade ( Invitrogen ) . Image
+                ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||mouse IgG1. |Af|||||||||||||||||||||||t|e||||||||||||r||||||||||w||||||||a|||||r||||||||||||||d, |||||||||||||||t||h
+                IgG1 . Afterward , the sections were washed and in the case of PROTEIN74N staining a blocking step with an unconjugated mouse IgG1| mA|b was used . Finally , the sections were stained with Alexa Fluor 488-conjugated| mouse IgG1 mAb to h
+                """
+
                 insert_length = 0
                 for char in aligned_sub_a[::-1]:
                     if char == '|':
@@ -380,7 +390,7 @@ class SegmentAlignment(object):
                 aligned_a += aligned_sub_a[:len(aligned_sub_a) - insert_length]
                 aligned_b += aligned_sub_b[:len(aligned_sub_b) - insert_length]
 
-
+            # debug lines
             # print(curr_a, curr_b, insert_length)
             # print(''.join(sub_seq_a), ''.join(sub_seq_b), sep='\n')
             # print(''.join(aligned_sub_a), ''.join(aligned_sub_b), sep='\n')
@@ -404,7 +414,10 @@ class SegmentAlignment(object):
              results shown are representative of at two to fou|
             """
 
-            diff = abs(len_a - curr_a - (len_b - curr_b))
+            # use a fixed length diff to avoid too many information in sub_seq_b
+            # which causes a problem by starting gap (the above one)
+            # diff = abs(len_a - curr_a - (len_b - curr_b))
+            diff = cls.step
 
         # append the left parts
         if curr_b < len_b:
@@ -425,8 +438,8 @@ def test():
 
     for root, _, files in os.walk('data/raw'):
         for f in files:
-            # if f != 'PMID-24.txt':
-            # continue
+            # if f != 'PMID-101.txt':
+            #     continue
             print(f)
             raw_text_file = open(os.path.join(root, f), 'r')
             raw_text = raw_text_file.read()
@@ -453,51 +466,55 @@ def test():
             res.write(''.join(nsa) + '\n' + ''.join(nsb) + '\n\n\n')
 
             # reverse
-            ha, hb = h.align(list(altered_text), list(raw_text))
-
-            nsa, nsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Needleman')
-            hsa, hsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Hirschberg')
-
-            print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
-                  '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
-                  '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
-                  '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
-            print()
-
-            res.write(''.join(hb) + '\n' + ''.join(ha) + '\n\n')
-            res.write(''.join(nsb) + '\n' + ''.join(nsa))
+            # ha, hb = h.align(list(altered_text), list(raw_text))
+            #
+            # nsa, nsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Needleman')
+            # hsa, hsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Hirschberg')
+            #
+            # print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
+            #       '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
+            #       '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
+            #       '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+            # print()
+            #
+            # res.write(''.join(hb) + '\n' + ''.join(ha) + '\n\n')
+            # res.write(''.join(nsb) + '\n' + ''.join(nsa))
 
             res.close()
 
-if __name__ == '__main__':
-    # seqa = list('12345678')
-    # seqb = list('123478908')
 
+def test_functions():
+
+    seqa = list('12345678')
+    seqb = list('123478908')
+
+    n = Needleman(semiglobal=False)
+    a, b = n.align(seqa, seqb)
+    print(a)
+    print(b)
+    
+    h = Hirschberg()
+    a, b = h.align(seqa, seqb)
+    print(a)
+    print(b)
+
+    #
+    s = SegmentAlignment()
+    a, b = s.align(seqa, seqb)
+    print(a)
+    print(b)
+    
     # semi-global
-    # seqa = list('CGTACGTGAGTGA')
-    # seqb = list('CGATTA')
+    seqa = list('CGTACGTGAGTGA')
+    seqb = list('CGATTA')
     # ['C', 'G', '|', 'T', '|', 'A', 'C', 'G', 'T', 'G', 'A', 'G', 'T', 'G', 'A']
     # ['C', 'G', 'A', 'T', 'T', 'A', '|', '|', '|', '|', '|', '|', '|', '|', '|']
+    n = Needleman(semiglobal=True)
+    a, b = n.align(seqa, seqb)
+    print(a)
+    print(b)
+    
+if __name__ == '__main__':
 
-    # seqa = list(
-    # 'Antiangiogenic role of miR-361 in human umbilical vein endothelial cells: functional interaction with the peptide somatostatin . Somatostatin (SRIF) acts as antiangiogenic factor, but its role in the regulation of microRNAs (miRNAs) targeting proangiogenic factors is unknown. We used human umbilical vein endothelial cells (HUVEC) to investigate whether (1) miRNAs targeting proangiogenic factors are influenced by hypoxia,(2) their expression is regulated by SRIF, and (3) SRIF-regulated miRNAs affect HUVEC angiogenic phenotype. The involvement of signal transducer and activator of transcription ~@~(STAT) 3! and hypoxia inducible factor (HIF) -1 in miRNA effects was studied. Quantitative real-time PCR, Western blot, cell proliferation assays, and enzyme-linked immunosorbent assay (ELISA) were used. Using specific algorithms, three miRNAs (miR-17, miR-18b, and miR-361) were predicted to bind angiogenesis-associated factors including STAT3, HIF-1alpha, and vascular endothelial growth factor (VEGF). Hypoxia downregulates miR-17 and miR-361 without affecting miR-18b . SRIF restored decreased levels of miR-361 acting at the SRIF receptor sst (1). Downregulated miR-361 was also restored by HIF-1alpha inhibition with YC-1. Combined application of SRIF did not influence YC-1-induced miR-361 downregulation, suggesting that YC-1 and SRIF modulate miR-361 through a common mechanism involving HIF-1alpha . This possibility was confirmed by the result that HIF-1alpha activation in normoxia-downregulated miR-361 and that this downregulation was prevented by SRIF. miR-361 overexpression reduced hypoxia-induced cell proliferation and VEGF release indicating miR-361 involvement in the acquisition of an angiogenic phenotype by HUVEC. miR-361 effects on VEGF were enhanced by the coadministration of SRIF. Our results suggest that (1) SRIF regulates miR-361 expression through a control on HIF-1,(2) miR-361 affects HUVEC angiogenic phenotype, and (3) SRIF and miR-361 act cooperatively in limiting hypoxia-induced VEGF release.')
-    # seqb = list(
-    # 'Antiangiogenic role of miR-361 in human umbilical vein endothelial cells: functional interaction with the peptide somatostatin. Somatostatin (SRIF) acts as antiangiogenic factor, but its role in the regulation of microRNAs (miRNAs) targeting proangiogenic factors is unknown. We used human umbilical vein endothelial cells (HUVEC) to investigate whether (1) miRNAs targeting proangiogenic factors are influenced by hypoxia, (2) their expression is regulated by SRIF, and (3) SRIF-regulated miRNAs affect HUVEC angiogenic phenotype. The involvement of signal transducer and activator of transcription (STAT) 3 and hypoxia inducible factor (HIF)-1 in miRNA effects was studied. Quantitative real-time PCR, Western blot, cell proliferation assays, and enzyme-linked immunosorbent assay (ELISA) were used. Using specific algorithms, three miRNAs (miR-17, miR-18b, and miR-361) were predicted to bind angiogenesis-associated factors including STAT3, HIF-1α, and vascular endothelial growth factor (VEGF). Hypoxia downregulates miR-17 and miR-361 without affecting miR-18b. SRIF restored decreased levels of miR-361 acting at the SRIF receptor sst(1). Downregulated miR-361 was also restored by HIF-1α inhibition with YC-1. Combined application of SRIF did not influence YC-1-induced miR-361 downregulation, suggesting that YC-1 and SRIF modulate miR-361 through a common mechanism involving HIF-1α. This possibility was confirmed by the result that HIF-1α activation in normoxia-downregulated miR-361 and that this downregulation was prevented by SRIF. miR-361 overexpression reduced hypoxia-induced cell proliferation and VEGF release indicating miR-361 involvement in the acquisition of an angiogenic phenotype by HUVEC. miR-361 effects on VEGF were enhanced by the coadministration of SRIF. Our results suggest that (1) SRIF regulates miR-361 expression through a control on HIF-1, (2) miR-361 affects HUVEC angiogenic phenotype, and (3) SRIF and miR-361 act cooperatively in limiting hypoxia-induced VEGF release.')
-    # n = Needleman(semiglobal=True)
-    # a, b = n.align(seqa, seqb)
-    # print(a)
-    # print(b)
-    #
-    # # h = Hirschberg()
-    # # a, b = h.align(seqa, seqb)
-    #
-    # s = SegmentAlignment()
-    # sa, sb = s.align(seqa, seqb)
-    # print(''.join(a), ''.join(b), sep='\n')
-    # print(''.join(sa), ''.join(sb), sep='\n')
-    # print(a == sa, b == sb)
-
-    # print(a)
-    # print(b)
-
-    test()
+    # test()
+    test_functions()

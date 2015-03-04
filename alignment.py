@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import operator
-import re
 
 class Alignment(object):
     SCORE_UNIFORM = 1
@@ -14,7 +12,7 @@ class Alignment(object):
         self.score_null = 5
         self.score_sub = -100
         self.score_del = -2
-        self.score_ins = -1
+        self.score_ins = -2
         self.separator = u'|'
         self.mode = Alignment.SCORE_UNIFORM
 
@@ -84,8 +82,11 @@ class Alignment(object):
 
 
 class Needleman(Alignment):
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         super(Needleman, self).__init__(*args)
+        self.semiglobal = False
+        self.matrix = None
+        self.semi_end = True
 
     def init_matrix(self):
         rows = self.len_a + 1
@@ -98,11 +99,11 @@ class Needleman(Alignment):
         len_a = self.len_a
         len_b = self.len_b
 
-        for i in range(1, len_a + 1):
-            self.matrix[i][0] = self.delete(seq_a[i - 1]) + self.matrix[i - 1][0]
-
-        for i in range(1, len_b + 1):
-            self.matrix[0][i] = self.insert(seq_b[i - 1]) + self.matrix[0][i - 1]
+        if not self.semiglobal:
+            for i in range(1, len_a + 1):
+                self.matrix[i][0] = self.delete(seq_a[i - 1]) + self.matrix[i - 1][0]
+            for i in range(1, len_b + 1):
+                self.matrix[0][i] = self.insert(seq_b[i - 1]) + self.matrix[0][i - 1]
 
         for i in range(1, len_a + 1):
             for j in range(1, len_b + 1):
@@ -118,10 +119,37 @@ class Needleman(Alignment):
     def backtrack(self):
         aligned_seq_a, aligned_seq_b = [], []
         seq_a, seq_b = self.seq_a, self.seq_b
-        i, j = self.len_a, self.len_b
+
+        if self.semiglobal:
+            # semi-global settings, len_a = row numbers, column length, len_b = column number, row length
+            last_col_max, val = max(enumerate([row[-1] for row in self.matrix]), key=lambda a: a[1])
+            last_row_max, val = max(enumerate([col for col in self.matrix[-1]]), key=lambda a: a[1])
+
+            if self.len_a < self.len_b:
+                i, j = self.len_a, last_row_max
+                aligned_seq_a = [self.separator] * (self.len_b - last_row_max)
+                aligned_seq_b = seq_b[last_row_max:]
+            else:
+                i, j = last_col_max, self.len_b
+                aligned_seq_a = seq_a[last_col_max:]
+                aligned_seq_b = [self.separator] * (self.len_a - last_col_max)
+        else:
+            i, j = self.len_a, self.len_b
+
         mat = self.matrix
+
         while i > 0 or j > 0:
             # from end to start, choose insert/delete over match for a tie
+
+            if self.semiglobal and (i == 0 or j == 0):
+                if i == 0 and j > 0:
+                    aligned_seq_a = [self.separator] * j + aligned_seq_a
+                    aligned_seq_b = seq_b[:j] + aligned_seq_b
+                elif i > 0 and j == 0:
+                    aligned_seq_a = seq_a[:i] + aligned_seq_a
+                    aligned_seq_b = [self.separator] * i + aligned_seq_b
+                break
+
             if j > 0 and mat[i][j] == mat[i][j - 1] + self.insert(seq_b[j - 1]):
                 aligned_seq_a.insert(0, self.separator * len(seq_b[j - 1]))
                 aligned_seq_b.insert(0, seq_b[j - 1])
@@ -132,8 +160,7 @@ class Needleman(Alignment):
                 aligned_seq_b.insert(0, self.separator * len(seq_a[i - 1]))
                 i -= 1
 
-            elif (i > 0 and j > 0 and
-                          mat[i][j] == mat[i - 1][j - 1] + self.match(seq_a[i - 1], seq_b[j - 1])):
+            elif i > 0 and j > 0 and mat[i][j] == mat[i - 1][j - 1] + self.match(seq_a[i - 1], seq_b[j - 1]):
                 aligned_seq_a.insert(0, seq_a[i - 1])
                 aligned_seq_b.insert(0, seq_b[j - 1])
                 i -= 1
@@ -144,17 +171,23 @@ class Needleman(Alignment):
                 print(seq_b)
                 print(aligned_seq_a)
                 print(aligned_seq_b)
-                print(mat)
+                # print(mat)
                 raise Exception('backtrack error', i, j, seq_a[i - 2:i + 1], seq_b[j - 2:j + 1])
                 pass
 
         return aligned_seq_a, aligned_seq_b
 
-    def align(self, seq_a, seq_b, mode=None):
+    def align(self, seq_a, seq_b, semiglobal=False, semi_end=2, mode=None):
         self.seq_a = seq_a
         self.seq_b = seq_b
         self.len_a = len(self.seq_a)
         self.len_b = len(self.seq_b)
+
+        self.semiglobal = semiglobal
+
+        # 0: left-end 0-penalty, 1: right-end 0-penalty, 2: both ends 0-penalty
+        self.semi_end = semi_end
+
         if mode is not None:
             self.mode = mode
         self.init_matrix()
@@ -214,7 +247,7 @@ class Hirschberg(Alignment):
             rowright.reverse()
 
             row = [l + r for l, r in zip(rowleft, rowright)]
-            maxidx, maxval = max(enumerate(row), key=operator.itemgetter(1))
+            maxidx, maxval = max(enumerate(row), key=lambda a: a[1])
 
             mid_b = maxidx
 
@@ -237,16 +270,37 @@ class Hirschberg(Alignment):
 
 class SegmentAlignment(object):
     step = 50
-    pattern = re.compile(r'[^|]')
+
     def __init__(self):
         pass
 
     @classmethod
-    def char_count(cls, seq):
-        return sum([1 for char in seq if char != '|'])
+    def skip_same(cls, seq_a, seq_b, curr_a, curr_b, aligned_seq_a, aligned_seq_b):
+        # find the first different index
+        while True:
+            if seq_a[curr_a] == seq_b[curr_b]:
+                aligned_seq_a.append(seq_a[curr_a])
+                aligned_seq_b.append(seq_b[curr_b])
+                curr_a += 1
+                curr_b += 1
+            else:
+                break
+
+            if curr_a >= len(seq_a) or curr_b >= len(seq_b):
+                break
+
+        return curr_a, curr_b
+
 
     @classmethod
-    def align(cls, seq_a, seq_b):
+    def align(cls, seq_left, seq_right, segment_half=False, base_alignment='Needleman', semiglobal=True):
+
+        # we assume seq_b.length > seq_a.length
+        if len(seq_left) < len(seq_right):
+            seq_a, seq_b = seq_left, seq_right
+        else:
+            seq_b, seq_a = seq_left, seq_right
+
         len_a = len(seq_a)
         len_b = len(seq_b)
         diff = abs(len_a - len_b)
@@ -254,46 +308,105 @@ class SegmentAlignment(object):
         curr_a = 0
         curr_b = 0
 
-        h = Hirschberg()
+        if base_alignment == 'Hirschberg':
+            aligner = Hirschberg()
+        elif base_alignment == 'Needleman':
+            aligner = Needleman(semiglobal=semiglobal)
+        else:
+            aligner = None
+
         aligned_a = []
         aligned_b = []
 
         insert_length = 0
         while curr_a < len_a and curr_b < len_b:
+
+            # skip the same
+            curr_a, curr_b = cls.skip_same(seq_a, seq_b, curr_a, curr_b, aligned_a, aligned_b)
+
             sub_seq_a = seq_a[curr_a:curr_a + cls.step]
             sub_seq_b = seq_b[curr_b:curr_b + cls.step + diff]
 
-            aligned_sub_a, aligned_sub_b = h.align(sub_seq_a, sub_seq_b)
-            
-            # only takes the first half with good context
-            aligned_sub_a = aligned_sub_a[:int(len(aligned_sub_a)/2)]
-            aligned_sub_b = aligned_sub_b[:int(len(aligned_sub_b)/2)]
-            half_sub_a_len = sum([1 for char in aligned_sub_a if char != '|'])
-            half_sub_b_len = sum([1 for char in aligned_sub_b if char != '|'])
+            aligned_sub_a, aligned_sub_b = aligner.align(sub_seq_a, sub_seq_b)
 
-            print(curr_a, curr_b, insert_length)
-            print(''.join(sub_seq_a), ''.join(sub_seq_b), sep='\n')
-            print(''.join(aligned_sub_a), ''.join(aligned_sub_b), sep='\n')
-            print()
+            if segment_half:
+                # only takes the first half with good context, for Hirschberg
+                # Problem, the first half can still be mis-aligned.
+                # PMID-101.txt
+                # because it doesn't assure the first half is well-contexted,
+                # just highly likely to be well-contexted
+                half_aligned_sub_a = []
+                char_len = 0
 
-            insert_length = 0
-            for char in aligned_sub_a[::-1]:
-                if char == '|':
-                    insert_length += 1
-                else:
-                    break
+                for char in aligned_sub_a:
+                    half_aligned_sub_a.append(char)
+                    if char != '|':
+                        char_len += 1
+                    if char_len >= cls.step / 2:
+                        break
 
-            aligned_a += aligned_sub_a[:len(aligned_sub_a) - insert_length]
-            aligned_b += aligned_sub_b[:len(aligned_sub_b) - insert_length]
+                aligned_sub_a = half_aligned_sub_a
+                aligned_sub_b = aligned_sub_b[:len(aligned_sub_a)]
 
-            # curr_a += len(sub_seq_a)
-            # curr_b += len(sub_seq_b) - insert_length
-            
-            curr_a += half_sub_a_len
-            curr_b += half_sub_b_len - insert_length
-            
+                incre_a = int(cls.step / 2)
+                incre_b = sum([1 for char in aligned_sub_b if char != '|'])
+                aligned_a += aligned_sub_a
+                aligned_b += aligned_sub_b
+            else:
+                # use full segment, for semi-global needleman
+
+                # Problem: it tries to find longest starting gap,
+                # and the paranthesis is mis-aligned, even with segment-half
+                # current solution: skip_same() + segment-half
+                # TODO: do not use 0-penalty for starting gap? - require to change semi-global part in Neddleman algo.
+
+                """ PMID-24.txt
+                ) Total RNA was isolated from A3.01 T cells using 
+                 ) AB - Total RNA was isolated from A3.01 T cells using RNeasy mini kit
+                
+                ||||||||) Total RNA was isolated from A3.01 T cells using |||||||||||||||
+                 ) AB - ||Total RNA was isolated from A3.01 T cells using RNeasy mini kit
+                """
+
+                insert_length = 0
+                for char in aligned_sub_a[::-1]:
+                    if char == '|':
+                        insert_length += 1
+                    else:
+                        break
+
+                incre_a = len(sub_seq_a)
+                incre_b = len(sub_seq_b) - insert_length
+                aligned_a += aligned_sub_a[:len(aligned_sub_a) - insert_length]
+                aligned_b += aligned_sub_b[:len(aligned_sub_b) - insert_length]
+
+
+            # print(curr_a, curr_b, insert_length)
+            # print(''.join(sub_seq_a), ''.join(sub_seq_b), sep='\n')
+            # print(''.join(aligned_sub_a), ''.join(aligned_sub_b), sep='\n')
+            # print()
+
+            curr_a += incre_a
+            curr_b += incre_b
+
+            # how to select to reasonable diff
+            # consider AAAAA, BBBBBAAAAA, diff=5 is good
+            # why sometimes diff is 0 when semi-global needleman without segment-half?
+
+            # the exmaple below shows the altered segment doesn't have enough
+            # information to align with original segment, i.e., "r" is missing
+            # current solution: use segment-half
+            """ PMID-46.txt
+            results shown are representative of at two to four
+             results shown are representative of at two to fou
+             
+            |results shown are representative of at two to four
+             results shown are representative of at two to fou|
+            """
+
             diff = abs(len_a - curr_a - (len_b - curr_b))
 
+        # append the left parts
         if curr_b < len_b:
             aligned_a += ['|'] * (len_b - curr_b)
             aligned_b += seq_b[curr_b:]
@@ -312,8 +425,9 @@ def test():
 
     for root, _, files in os.walk('data/raw'):
         for f in files:
-            if f != 'PMID-71.txt':
-                continue
+            # if f != 'PMID-24.txt':
+            # continue
+            print(f)
             raw_text_file = open(os.path.join(root, f), 'r')
             raw_text = raw_text_file.read()
             raw_text_file.close()
@@ -322,28 +436,57 @@ def test():
             altered_text = altered_text_file.read()
             altered_text_file.close()
 
+            # golden global alignment with Hirschberg
             ha, hb = h.align(list(raw_text), list(altered_text))
 
-            sa, sb = s.align(list(raw_text), list(altered_text))
+            nsa, nsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Needleman')
+            hsa, hsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Hirschberg')
 
-            print(f, ha == sa, hb == sb)
+            print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
+                  '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
+                  '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
+                  '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+            print()
 
             res = open('data/aligned/' + f, 'w')
             res.write(''.join(ha) + '\n' + ''.join(hb) + '\n\n')
-            res.write(''.join(sa) + '\n' + ''.join(sb))
+            res.write(''.join(nsa) + '\n' + ''.join(nsb) + '\n\n\n')
+
+            # reverse
+            ha, hb = h.align(list(altered_text), list(raw_text))
+
+            nsa, nsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Needleman')
+            hsa, hsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Hirschberg')
+
+            print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
+                  '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
+                  '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
+                  '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+            print()
+
+            res.write(''.join(hb) + '\n' + ''.join(ha) + '\n\n')
+            res.write(''.join(nsb) + '\n' + ''.join(nsa))
+
             res.close()
 
 if __name__ == '__main__':
     # seqa = list('12345678')
     # seqb = list('123478908')
+
+    # semi-global
+    # seqa = list('CGTACGTGAGTGA')
+    # seqb = list('CGATTA')
+    # ['C', 'G', '|', 'T', '|', 'A', 'C', 'G', 'T', 'G', 'A', 'G', 'T', 'G', 'A']
+    # ['C', 'G', 'A', 'T', 'T', 'A', '|', '|', '|', '|', '|', '|', '|', '|', '|']
+
     # seqa = list(
     # 'Antiangiogenic role of miR-361 in human umbilical vein endothelial cells: functional interaction with the peptide somatostatin . Somatostatin (SRIF) acts as antiangiogenic factor, but its role in the regulation of microRNAs (miRNAs) targeting proangiogenic factors is unknown. We used human umbilical vein endothelial cells (HUVEC) to investigate whether (1) miRNAs targeting proangiogenic factors are influenced by hypoxia,(2) their expression is regulated by SRIF, and (3) SRIF-regulated miRNAs affect HUVEC angiogenic phenotype. The involvement of signal transducer and activator of transcription ~@~(STAT) 3! and hypoxia inducible factor (HIF) -1 in miRNA effects was studied. Quantitative real-time PCR, Western blot, cell proliferation assays, and enzyme-linked immunosorbent assay (ELISA) were used. Using specific algorithms, three miRNAs (miR-17, miR-18b, and miR-361) were predicted to bind angiogenesis-associated factors including STAT3, HIF-1alpha, and vascular endothelial growth factor (VEGF). Hypoxia downregulates miR-17 and miR-361 without affecting miR-18b . SRIF restored decreased levels of miR-361 acting at the SRIF receptor sst (1). Downregulated miR-361 was also restored by HIF-1alpha inhibition with YC-1. Combined application of SRIF did not influence YC-1-induced miR-361 downregulation, suggesting that YC-1 and SRIF modulate miR-361 through a common mechanism involving HIF-1alpha . This possibility was confirmed by the result that HIF-1alpha activation in normoxia-downregulated miR-361 and that this downregulation was prevented by SRIF. miR-361 overexpression reduced hypoxia-induced cell proliferation and VEGF release indicating miR-361 involvement in the acquisition of an angiogenic phenotype by HUVEC. miR-361 effects on VEGF were enhanced by the coadministration of SRIF. Our results suggest that (1) SRIF regulates miR-361 expression through a control on HIF-1,(2) miR-361 affects HUVEC angiogenic phenotype, and (3) SRIF and miR-361 act cooperatively in limiting hypoxia-induced VEGF release.')
     # seqb = list(
     # 'Antiangiogenic role of miR-361 in human umbilical vein endothelial cells: functional interaction with the peptide somatostatin. Somatostatin (SRIF) acts as antiangiogenic factor, but its role in the regulation of microRNAs (miRNAs) targeting proangiogenic factors is unknown. We used human umbilical vein endothelial cells (HUVEC) to investigate whether (1) miRNAs targeting proangiogenic factors are influenced by hypoxia, (2) their expression is regulated by SRIF, and (3) SRIF-regulated miRNAs affect HUVEC angiogenic phenotype. The involvement of signal transducer and activator of transcription (STAT) 3 and hypoxia inducible factor (HIF)-1 in miRNA effects was studied. Quantitative real-time PCR, Western blot, cell proliferation assays, and enzyme-linked immunosorbent assay (ELISA) were used. Using specific algorithms, three miRNAs (miR-17, miR-18b, and miR-361) were predicted to bind angiogenesis-associated factors including STAT3, HIF-1α, and vascular endothelial growth factor (VEGF). Hypoxia downregulates miR-17 and miR-361 without affecting miR-18b. SRIF restored decreased levels of miR-361 acting at the SRIF receptor sst(1). Downregulated miR-361 was also restored by HIF-1α inhibition with YC-1. Combined application of SRIF did not influence YC-1-induced miR-361 downregulation, suggesting that YC-1 and SRIF modulate miR-361 through a common mechanism involving HIF-1α. This possibility was confirmed by the result that HIF-1α activation in normoxia-downregulated miR-361 and that this downregulation was prevented by SRIF. miR-361 overexpression reduced hypoxia-induced cell proliferation and VEGF release indicating miR-361 involvement in the acquisition of an angiogenic phenotype by HUVEC. miR-361 effects on VEGF were enhanced by the coadministration of SRIF. Our results suggest that (1) SRIF regulates miR-361 expression through a control on HIF-1, (2) miR-361 affects HUVEC angiogenic phenotype, and (3) SRIF and miR-361 act cooperatively in limiting hypoxia-induced VEGF release.')
-    # # n = Needleman(seqa, seqb)
-    # # a, b = n.align()
-    # # print(a)
-    # # print(b)
+    # n = Needleman(semiglobal=True)
+    # a, b = n.align(seqa, seqb)
+    # print(a)
+    # print(b)
     #
     # # h = Hirschberg()
     # # a, b = h.align(seqa, seqb)

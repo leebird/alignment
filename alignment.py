@@ -5,7 +5,7 @@ class Alignment(object):
     SCORE_UNIFORM = 1
     SCORE_PROPORTION = 2
 
-    def __init__(self, *args):
+    def __init__(self):
         self.seq_a = None
         self.seq_b = None
         self.len_a = None
@@ -83,8 +83,8 @@ class Alignment(object):
 
 
 class Needleman(Alignment):
-    def __init__(self, *args, **kwargs):
-        super(Needleman, self).__init__(*args)
+    def __init__(self):
+        super(Needleman, self).__init__()
         self.semiglobal = False
         self.matrix = None
 
@@ -197,7 +197,7 @@ class Needleman(Alignment):
 
 class Hirschberg(Alignment):
     def __init__(self, *args):
-        super(Hirschberg, self).__init__(*args)
+        super(Hirschberg, self).__init__()
         self.needleman = Needleman()
 
     def last_row(self, seqa, seqb):
@@ -272,6 +272,7 @@ class SegmentAlignment(Alignment):
     step = 50
 
     def __init__(self):
+        super(SegmentAlignment, self).__init__()
         pass
 
     @classmethod
@@ -310,11 +311,13 @@ class SegmentAlignment(Alignment):
 
         curr_a = 0
         curr_b = 0
+        is_needleman = False
 
         if base_alignment == 'Hirschberg':
             aligner = Hirschberg()
         elif base_alignment == 'Needleman':
-            aligner = Needleman(semiglobal=semiglobal)
+            aligner = Needleman()
+            is_needleman = True
         else:
             aligner = None
 
@@ -330,7 +333,10 @@ class SegmentAlignment(Alignment):
             sub_seq_a = seq_a[curr_a:curr_a + cls.step]
             sub_seq_b = seq_b[curr_b:curr_b + cls.step + diff]
 
-            aligned_sub_a, aligned_sub_b = aligner.align(sub_seq_a, sub_seq_b)
+            if is_needleman:
+                aligned_sub_a, aligned_sub_b = aligner.align(sub_seq_a, sub_seq_b, semiglobal=semiglobal)
+            else:
+                aligned_sub_a, aligned_sub_b = aligner.align(sub_seq_a, sub_seq_b)
 
             if segment_half:
                 # only takes the first half with good context, for Hirschberg
@@ -488,8 +494,8 @@ def test_functions():
     seqa = list('12345678')
     seqb = list('123478908')
 
-    n = Needleman(semiglobal=False)
-    a, b = n.align(seqa, seqb)
+    n = Needleman()
+    a, b = n.align(seqa, seqb, semiglobal=False)
     print(a)
     print(b)
     
@@ -497,10 +503,13 @@ def test_functions():
     a, b = h.align(seqa, seqb)
     print(a)
     print(b)
-
+    
     #
     s = SegmentAlignment()
-    a, b = s.align(seqa, seqb)
+    a, b = s.align(seqa, seqb, base_alignment='Needleman', semiglobal=True)
+    print(a)
+    print(b)
+    a, b = s.align(seqa, seqb, base_alignment='Hirschberg', segment_half=True)
     print(a)
     print(b)
     
@@ -509,8 +518,8 @@ def test_functions():
     seqb = list('CGATTA')
     # ['C', 'G', '|', 'T', '|', 'A', 'C', 'G', 'T', 'G', 'A', 'G', 'T', 'G', 'A']
     # ['C', 'G', 'A', 'T', 'T', 'A', '|', '|', '|', '|', '|', '|', '|', '|', '|']
-    n = Needleman(semiglobal=True)
-    a, b = n.align(seqa, seqb)
+    n = Needleman()
+    a, b = n.align(seqa, seqb, semiglobal=True)
     print(a)
     print(b)
     

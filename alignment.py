@@ -426,8 +426,10 @@ class SegmentAlignment(Alignment):
         else:
             aligned_a += seq_a[curr_a:]
             aligned_b += ['|'] * (len_a - curr_a)
-
-        return aligned_a, aligned_b
+        if len(seq_left) < len(seq_right):
+            return aligned_a, aligned_b
+        else:
+            return aligned_b, aligned_a
 
 
 def test():
@@ -438,7 +440,7 @@ def test():
 
     for root, _, files in os.walk('data/raw'):
         for f in files:
-            # if f != 'PMID-101.txt':
+            # if f != 'PMID-2355960.txt':
             #     continue
             print(f)
             raw_text_file = open(os.path.join(root, f), 'r')
@@ -516,5 +518,5 @@ def test_functions():
     
 if __name__ == '__main__':
 
-    # test()
-    test_functions()
+    test()
+    # test_functions()

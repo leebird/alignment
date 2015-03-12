@@ -72,11 +72,22 @@ class Alignment(object):
         idx = 0
         for x, y in zip(aligned_seq_a, aligned_seq_b):
             if x == y:
+                # if two positions are the same
                 map_b2a.append(idx)
                 idx += 1
             elif x == self.separator:
+                # if a character is inserted in b, map b's
+                # position to previous index in a
+                # b[0]=0, b[1]=1, b[2]=1, b[3]=2
+                # aa|bbb
+                # aaabbb
                 map_b2a.append(idx)
             elif y == self.separator:
+                # if a character is deleted in a, increase
+                # index in a, skip this position
+                # b[0]=0, b[1]=1, b[2]=3
+                # aaabbb
+                # aa|bbb
                 idx += 1
                 continue
         return map_b2a

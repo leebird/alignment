@@ -26,8 +26,8 @@ class TestAlignment(TestCase):
         # found the bug of extra space in original text
         # looks like a bug in brat
         # try to fix it by using correct original text
-        of = os.path.join(self.path, 'data/16741954.original')
-        af = os.path.join(self.path, 'data/16741954.altered')
+        of = os.path.join(self.path, 'data/24742516.original')
+        af = os.path.join(self.path, 'data/24742516.altered')
         with open(of) as oh, open(af) as ah:
             aligner = SegmentAlignment()
             original_text = oh.read()
@@ -35,9 +35,9 @@ class TestAlignment(TestCase):
             aligned_gold, aligned_altered = aligner.align(original_text, altered_text,
                                                           segment_half=True, base_alignment='Hirschberg')
             alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
-            print(alter2gold[670], alter2gold[674])
-            print(original_text[alter2gold[670]:alter2gold[674]])
-            # print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+            # print(alter2gold[1515], alter2gold[1525])
+            # print(original_text[alter2gold[1515]:alter2gold[1525]])
+            print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
 
 if __name__ == '__main__':
     unittest.main()

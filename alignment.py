@@ -5,7 +5,7 @@ class Alignment(object):
     SCORE_UNIFORM = 1
     SCORE_PROPORTION = 2
 
-    def __init__(self, *args):
+    def __init__(self):
         self.seq_a = None
         self.seq_b = None
         self.len_a = None
@@ -94,9 +94,9 @@ class Alignment(object):
 
 
 class Needleman(Alignment):
-    def __init__(self, *args, **kwargs):
-        super(Needleman, self).__init__(*args)
-        self.semiglobal = False
+    def __init__(self, *args):
+        super(Needleman, self).__init__()
+        self.semi_global = False
         self.matrix = None
 
     def init_matrix(self):
@@ -110,7 +110,7 @@ class Needleman(Alignment):
         len_a = self.len_a
         len_b = self.len_b
 
-        if not self.semiglobal:
+        if not self.semi_global:
             for i in range(1, len_a + 1):
                 self.matrix[i][0] = self.delete(seq_a[i - 1]) + self.matrix[i - 1][0]
             for i in range(1, len_b + 1):
@@ -131,7 +131,7 @@ class Needleman(Alignment):
         aligned_seq_a, aligned_seq_b = [], []
         seq_a, seq_b = self.seq_a, self.seq_b
 
-        if self.semiglobal:
+        if self.semi_global:
             # semi-global settings, len_a = row numbers, column length, len_b = column number, row length
             last_col_max, val = max(enumerate([row[-1] for row in self.matrix]), key=lambda a: a[1])
             last_row_max, val = max(enumerate([col for col in self.matrix[-1]]), key=lambda a: a[1])
@@ -151,8 +151,8 @@ class Needleman(Alignment):
 
         while i > 0 or j > 0:
             # from end to start, choose insert/delete over match for a tie
-
-            if self.semiglobal and (i == 0 or j == 0):
+            # why?
+            if self.semi_global and (i == 0 or j == 0):
                 if i == 0 and j > 0:
                     aligned_seq_a = [self.separator] * j + aligned_seq_a
                     aligned_seq_b = seq_b[:j] + aligned_seq_b
@@ -188,13 +188,13 @@ class Needleman(Alignment):
 
         return aligned_seq_a, aligned_seq_b
 
-    def align(self, seq_a, seq_b, semiglobal=False, semi_end=2, mode=None):
+    def align(self, seq_a, seq_b, semi_global=True, mode=None):
         self.seq_a = seq_a
         self.seq_b = seq_b
         self.len_a = len(self.seq_a)
         self.len_b = len(self.seq_b)
 
-        self.semiglobal = semiglobal
+        self.semi_global = semi_global
 
         # 0: left-end 0-penalty, 1: right-end 0-penalty, 2: both ends 0-penalty
         # self.semi_end = semi_end
@@ -207,8 +207,8 @@ class Needleman(Alignment):
 
 
 class Hirschberg(Alignment):
-    def __init__(self, *args):
-        super(Hirschberg, self).__init__(*args)
+    def __init__(self):
+        super(Hirschberg, self).__init__()
         self.needleman = Needleman()
 
     def last_row(self, seqa, seqb):
@@ -304,7 +304,7 @@ class SegmentAlignment(Alignment):
 
 
     @classmethod
-    def align(cls, seq_left, seq_right, segment_half=False, base_alignment='Needleman', semiglobal=True):
+    def align(cls, seq_left, seq_right, segment_half=False, base_alignment='Needleman', semi_global=True):
 
         # we assume seq_b.length > seq_a.length
         if len(seq_left) < len(seq_right):
@@ -321,13 +321,17 @@ class SegmentAlignment(Alignment):
 
         curr_a = 0
         curr_b = 0
-
+        is_needleman = False
+        
         if base_alignment == 'Hirschberg':
             aligner = Hirschberg()
         elif base_alignment == 'Needleman':
-            aligner = Needleman(semiglobal=semiglobal)
+            aligner = Needleman()
+            is_needleman = True
         else:
             aligner = None
+        
+        align = aligner.align
 
         aligned_a = []
         aligned_b = []
@@ -336,12 +340,19 @@ class SegmentAlignment(Alignment):
         while curr_a < len_a and curr_b < len_b:
 
             # skip the same
-            curr_a, curr_b = cls.skip_same(seq_a, seq_b, curr_a, curr_b, aligned_a, aligned_b)
+            if not (is_needleman and semi_global):
+                # when semi-global, we don't want to skip the same, consider
+                # 'TI - Transcription factor AP-2 activity is modulated'
+                # 'Transcription factor AP-2 activity is modulated'
+                curr_a, curr_b = cls.skip_same(seq_a, seq_b, curr_a, curr_b, aligned_a, aligned_b)
 
             sub_seq_a = seq_a[curr_a:curr_a + cls.step]
             sub_seq_b = seq_b[curr_b:curr_b + cls.step + diff]
-
-            aligned_sub_a, aligned_sub_b = aligner.align(sub_seq_a, sub_seq_b)
+            
+            if is_needleman:
+                aligned_sub_a, aligned_sub_b = align(sub_seq_a, sub_seq_b, semi_global=semi_global)
+            else:
+                aligned_sub_a, aligned_sub_b = align(sub_seq_a, sub_seq_b)
 
             if segment_half:
                 # only takes the first half with good context, for Hirschberg
@@ -441,93 +452,3 @@ class SegmentAlignment(Alignment):
             return aligned_a, aligned_b
         else:
             return aligned_b, aligned_a
-
-
-def test():
-    import os
-
-    h = Hirschberg()
-    s = SegmentAlignment()
-
-    for root, _, files in os.walk('data/raw'):
-        for f in files:
-            # if f != 'PMID-2355960.txt':
-            #     continue
-            print(f)
-            raw_text_file = open(os.path.join(root, f), 'r')
-            raw_text = raw_text_file.read()
-            raw_text_file.close()
-
-            altered_text_file = open(os.path.join('data/altered', f), 'r')
-            altered_text = altered_text_file.read()
-            altered_text_file.close()
-
-            # golden global alignment with Hirschberg
-            ha, hb = h.align(list(raw_text), list(altered_text))
-
-            nsa, nsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Needleman')
-            hsa, hsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Hirschberg')
-
-            print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
-                  '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
-                  '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
-                  '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
-            print()
-
-            res = open('data/aligned/' + f, 'w')
-            res.write(''.join(ha) + '\n' + ''.join(hb) + '\n\n')
-            res.write(''.join(nsa) + '\n' + ''.join(nsb) + '\n\n\n')
-
-            # reverse
-            # ha, hb = h.align(list(altered_text), list(raw_text))
-            #
-            # nsa, nsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Needleman')
-            # hsa, hsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Hirschberg')
-            #
-            # print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
-            #       '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
-            #       '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
-            #       '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
-            # print()
-            #
-            # res.write(''.join(hb) + '\n' + ''.join(ha) + '\n\n')
-            # res.write(''.join(nsb) + '\n' + ''.join(nsa))
-
-            res.close()
-
-
-def test_functions():
-
-    seqa = list('12345678')
-    seqb = list('123478908')
-
-    n = Needleman(semiglobal=False)
-    a, b = n.align(seqa, seqb)
-    print(a)
-    print(b)
-    
-    h = Hirschberg()
-    a, b = h.align(seqa, seqb)
-    print(a)
-    print(b)
-
-    #
-    s = SegmentAlignment()
-    a, b = s.align(seqa, seqb)
-    print(a)
-    print(b)
-    
-    # semi-global
-    seqa = list('CGTACGTGAGTGA')
-    seqb = list('CGATTA')
-    # ['C', 'G', '|', 'T', '|', 'A', 'C', 'G', 'T', 'G', 'A', 'G', 'T', 'G', 'A']
-    # ['C', 'G', 'A', 'T', 'T', 'A', '|', '|', '|', '|', '|', '|', '|', '|', '|']
-    n = Needleman(semiglobal=True)
-    a, b = n.align(seqa, seqb)
-    print(a)
-    print(b)
-    
-if __name__ == '__main__':
-
-    test()
-    # test_functions()

@@ -3,6 +3,7 @@ from .alignment import *
 import unittest
 import os
 
+
 class TestAlignment(TestCase):
     def setUp(self):
         self.path = os.path.dirname(__file__)
@@ -17,7 +18,7 @@ class TestAlignment(TestCase):
             aligner = SegmentAlignment()
             original_text = oh.read()
             altered_text = ah.read()
-            aligned_gold, aligned_altered = aligner.align(original_text, altered_text,
+            aligned_gold, aligned_altered = aligner.align(list(original_text), list(altered_text),
                                                           segment_half=True, base_alignment='Hirschberg')
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
 
@@ -32,12 +33,102 @@ class TestAlignment(TestCase):
             aligner = SegmentAlignment()
             original_text = oh.read()
             altered_text = ah.read()
-            aligned_gold, aligned_altered = aligner.align(original_text, altered_text,
+            aligned_gold, aligned_altered = aligner.align(list(original_text), list(altered_text),
                                                           segment_half=True, base_alignment='Hirschberg')
             alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
             # print(alter2gold[1515], alter2gold[1525])
             # print(original_text[alter2gold[1515]:alter2gold[1525]])
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+
+
+class TestSet(TestCase):
+    def test(self):
+        import os
+
+        h = Hirschberg()
+        s = SegmentAlignment()
+
+        for root, _, files in os.walk('data/raw'):
+            for f in files:
+                # if f != 'PMID-2355960.txt':
+                # continue
+                print(f)
+                raw_text_file = open(os.path.join(root, f), 'r')
+                raw_text = raw_text_file.read()
+                raw_text_file.close()
+
+                altered_text_file = open(os.path.join('data/altered', f), 'r')
+                altered_text = altered_text_file.read()
+                altered_text_file.close()
+
+                # golden global alignment with Hirschberg
+                ha, hb = h.align(list(raw_text), list(altered_text))
+
+                nsa, nsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Needleman')
+                hsa, hsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Hirschberg')
+
+                print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
+                      '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
+                      '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
+                      '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+                print()
+
+                res = open('data/aligned/' + f, 'w')
+                res.write(''.join(ha) + '\n' + ''.join(hb) + '\n\n')
+                res.write(''.join(nsa) + '\n' + ''.join(nsb) + '\n\n\n')
+
+                # reverse
+                # ha, hb = h.align(list(altered_text), list(raw_text))
+                #
+                # nsa, nsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Needleman')
+                # hsa, hsb = s.align(list(altered_text), list(raw_text), segment_half=True, base_alignment='Hirschberg')
+                #
+                # print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
+                #       '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
+                #       '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
+                #       '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+                # print()
+                #
+                # res.write(''.join(hb) + '\n' + ''.join(ha) + '\n\n')
+                # res.write(''.join(nsb) + '\n' + ''.join(nsa))
+
+                res.close()
+
+
+class TestFunction(TestCase):
+    def test_functions(self):
+        seqa = list('12345678')
+        seqb = list('123478908')
+
+        n = Needleman()
+        a, b = n.align(seqa, seqb)
+        print(a)
+        print(b)
+
+        h = Hirschberg()
+        a, b = h.align(seqa, seqb)
+        print(a)
+        print(b)
+
+        seqa = list('TI - Transcription factor AP-2 activity is modulated')
+        seqb = list('Transcription factor AP-2 activity is modulated')
+        s = SegmentAlignment()
+        a, b = s.align(seqa, seqb, semi_global=True)
+        print(a)
+        print(b)
+
+        # semi-global
+        seqa = list('CGTACGTGAGTGA')
+        seqb = list('CGATTA')
+        seqa = list('TI - Transcription factor AP-2 activity is modulated')
+        seqb = list('Transcription factor AP-2 activity is modulated')
+        # ['C', 'G', '|', 'T', '|', 'A', 'C', 'G', 'T', 'G', 'A', 'G', 'T', 'G', 'A']
+        # ['C', 'G', 'A', 'T', 'T', 'A', '|', '|', '|', '|', '|', '|', '|', '|', '|']
+        n = Needleman()
+        a, b = n.align(seqa, seqb)
+        print(a)
+        print(b)
+
 
 if __name__ == '__main__':
     unittest.main()

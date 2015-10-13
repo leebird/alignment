@@ -8,14 +8,14 @@ Usage
 	from alignment import Needleman, Hirschberg
 	seqa = list('12345678')
 	seqb = list('123478901')
-	n = Needleman(seqa,seqb)
-	a,b = n.align()
+	n = Needleman()
+	a,b = n.align(seqa, seqb)
 	print a
 	print b
 	print
 
-	h = Hirschberg(seqa,seqb)
-	a,b = h.align()
+	h = Hirschberg()
+	a,b = h.align(seqa,seqb)
 	print a
 	print b
 	print

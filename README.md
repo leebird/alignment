@@ -8,24 +8,35 @@ Usage
 	from alignment import Needleman, Hirschberg
 	seqa = list('12345678')
 	seqb = list('123478901')
+	
+	# Align using Needleman-Wunsch algorithm.
 	n = Needleman()
 	a,b = n.align(seqa, seqb)
 	print a
 	print b
 	print
 
+	# Align using Hirschberg's algorithm.
 	h = Hirschberg()
 	a,b = h.align(seqa,seqb)
 	print a
 	print b
 	print
 
+	# Score the alignment, the higher the score is,
+	# the better the two sequences align.
+	score = h.score(a, b)
+	print score
+	
 	Output:
 	12345678|||
 	1234||78901
 
 	12345678|||
 	1234||78901
+	
+	# Score.
+	20
 
 Memory Usage
 ------------

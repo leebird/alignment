@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals, print_function
 
 
 class Alignment(object):
@@ -14,7 +15,7 @@ class Alignment(object):
         self.score_sub = -100
         self.score_del = -2
         self.score_ins = -2
-        self.separator = u'|'
+        self.separator = '|'
         self.mode = Alignment.SCORE_UNIFORM
 
     def set_score(self, score_null=None, score_sub=None, score_del=None, score_ins=None):

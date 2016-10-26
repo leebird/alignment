@@ -4,7 +4,7 @@ import traceback
 from alignment import SegmentAlignment
 
 
-def align_entity(cls, doc, original_text):
+def align_entity(doc, original_text):
     """ align annotation with original text
     :param doc: a document matching document.proto.
     :type doc: dict
@@ -16,12 +16,11 @@ def align_entity(cls, doc, original_text):
     original_text = list(original_text)
     
     # base_alginment = Hirschberg, segment_half = True, segment = 50, diff = 50
-    aligned_gold, aligned_altered = cls.aligner.align(
+    aligned_gold, aligned_altered = aligner.align(
         original_text, altered_text, segment_half=True, base_alignment='Hirschberg')
         
     original_text = ''.join(original_text)
-    alter2gold = cls.aligner.map_alignment(aligned_gold, aligned_altered)
-
+    alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
 
     for entity in doc.get('entity'):
         start = int(entity.get('charStart'))
@@ -40,6 +39,6 @@ def align_entity(cls, doc, original_text):
         except IndexError:
             traceback.print_exc()
             print(doc.get('docId'), len(alter2gold), start, end, sep="\t")
-        entity['entityText'] = original_text[entity.get('charStart'):entity.get('charEnd')]
+        entity['entityText'] = original_text[entity.get('charStart'):entity.get('charEnd')+1]
 
     doc['text'] = original_text

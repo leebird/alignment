@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function
 from unittest import TestCase
 from alignment import *
+from align import *
 import unittest
 import os
 
@@ -8,7 +9,6 @@ import os
 class TestAlignment(TestCase):
     def setUp(self):
         self.path = os.path.dirname(__file__)
-        pass
 
     def test_segnment_align(self):
         # found the bug of range index, [:end+1] is OK, [end+1]
@@ -19,10 +19,11 @@ class TestAlignment(TestCase):
             aligner = SegmentAlignment()
             original_text = oh.read()
             altered_text = ah.read()
-            aligned_gold, aligned_altered = aligner.align(list(original_text), list(altered_text),
-                                                          segment_half=True, base_alignment='Hirschberg')
+            aligned_gold, aligned_altered = aligner.align(list(original_text),
+                                                          list(altered_text),
+                                                          segment_half=True,
+                                                          base_alignment='Hirschberg')
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
-
 
     def test_segment_align_2(self):
         # found the bug of extra space in original text
@@ -34,8 +35,10 @@ class TestAlignment(TestCase):
             aligner = SegmentAlignment()
             original_text = oh.read()
             altered_text = ah.read()
-            aligned_gold, aligned_altered = aligner.align(list(original_text), list(altered_text),
-                                                          segment_half=True, base_alignment='Hirschberg')
+            aligned_gold, aligned_altered = aligner.align(list(original_text),
+                                                          list(altered_text),
+                                                          segment_half=True,
+                                                          base_alignment='Hirschberg')
             alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
             # print(alter2gold[1515], alter2gold[1525])
             # print(original_text[alter2gold[1515]:alter2gold[1525]])
@@ -65,13 +68,21 @@ class TestSet(TestCase):
                 # golden global alignment with Hirschberg
                 ha, hb = h.align(list(raw_text), list(altered_text))
 
-                nsa, nsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Needleman')
-                hsa, hsb = s.align(list(raw_text), list(altered_text), segment_half=True, base_alignment='Hirschberg')
+                nsa, nsb = s.align(list(raw_text), list(altered_text),
+                                   segment_half=True,
+                                   base_alignment='Needleman')
+                hsa, hsb = s.align(list(raw_text), list(altered_text),
+                                   segment_half=True,
+                                   base_alignment='Hirschberg')
 
-                print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa), '%6s' % (hb == nsb),
-                      '%.4f' % (len(nsa) / len(ha)), '%.4f' % (len(nsb) / len(hb)),
-                      '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa), '%6s' % (hb == hsb),
-                      '%.4f' % (len(hsa) / len(ha)), '%.4f' % (len(hsb) / len(hb)))
+                print('%22s' % 'golden-semiglobal', '%6s' % (ha == nsa),
+                      '%6s' % (hb == nsb),
+                      '%.4f' % (len(nsa) / len(ha)),
+                      '%.4f' % (len(nsb) / len(hb)),
+                      '\n%22s' % 'golden-segment-half', '%6s' % (ha == hsa),
+                      '%6s' % (hb == hsb),
+                      '%.4f' % (len(hsa) / len(ha)),
+                      '%.4f' % (len(hsb) / len(hb)))
                 print()
 
                 res = open('data/aligned/' + f, 'w')
@@ -130,6 +141,16 @@ class TestFunction(TestCase):
         print(a)
         print(b)
 
+
+class TestAlignEntity(TestCase):
+    def test_align_entity(self):
+        doc = {
+            'text': 'I  have a book.',
+            'entity': [{'charStart': 3, 'charEnd': 6}]
+        }
+        original_text = 'I have a book.'
+        align_entity(doc, original_text)
+        print(doc)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from .alignment import *
+from alignment import *
 import unittest
 import os
 

@@ -304,8 +304,8 @@ class SegmentAlignment(Alignment):
 
 
     @classmethod
-    def align(cls, seq_left, seq_right, segment_half=False, base_alignment='Needleman', semi_global=True):
-
+    def align(cls, seq_left, seq_right, segment_half=False, 
+              base_alignment='Needleman', semi_global=True):
         # we assume seq_b.length > seq_a.length
         if len(seq_left) < len(seq_right):
             seq_a, seq_b = seq_left, seq_right

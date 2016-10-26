@@ -22,7 +22,7 @@ def align_entity(doc, original_text):
     original_text = ''.join(original_text)
     alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
 
-    for entity in doc.get('entity'):
+    for entity_id, entity in doc.get('entity').items():
         start = int(entity.get('charStart'))
         end = int(entity.get('charEnd'))
 

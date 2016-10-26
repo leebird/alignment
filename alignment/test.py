@@ -146,7 +146,7 @@ class TestAlignEntity(TestCase):
     def test_align_entity(self):
         doc = {
             'text': 'I  have a book.',
-            'entity': [{'charStart': 3, 'charEnd': 6}]
+            'entity': {'T1': {'charStart': 3, 'charEnd': 6}}
         }
         original_text = 'I have a book.'
         align_entity(doc, original_text)

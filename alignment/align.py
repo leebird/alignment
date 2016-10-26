@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, print_function
 import traceback
-from alignment.alignment import SegmentAlignment
+from alignment import SegmentAlignment
 
 
 def align_entity(cls, doc, original_text):

@@ -45,6 +45,27 @@ class TestAlignment(TestCase):
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
 
 
+    def test_segment_align_3(self):
+        # Problematic case, not fiexed yet.
+        # found the bug of extra space in original text
+        # looks like a bug in brat
+        # try to fix it by using correct original text
+        of = os.path.join(self.path, 'data/26662996.original')
+        af = os.path.join(self.path, 'data/26662996.altered')
+        with open(of) as oh, open(af) as ah:
+            aligner = SegmentAlignment()
+            original_text = oh.read()
+            altered_text = ah.read()
+            aligned_gold, aligned_altered = aligner.align(list(original_text),
+                                                          list(altered_text),
+                                                          segment_half=True,
+                                                          base_alignment='Hirschberg')
+            alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
+            # print(alter2gold[1515], alter2gold[1525])
+            # print(original_text[alter2gold[1515]:alter2gold[1525]])
+            print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+
+
 class TestSet(TestCase):
     def test(self):
         import os
@@ -144,13 +165,11 @@ class TestFunction(TestCase):
 
 class TestAlignEntity(TestCase):
     def test_align_entity(self):
-        doc = {
-            'text': 'I  have a book.',
-            'entity': {'T1': {'charStart': 3, 'charEnd': 6}}
-        }
         original_text = 'I have a book.'
-        align_entity(doc, original_text)
-        print(doc)
+        altered_text = ' I  have a book.'
+        entities = [{'charStart': 4, 'charEnd': 7}]
+        align_entity(original_text, altered_text, entities)
+        print(entities)
 
 if __name__ == '__main__':
     unittest.main()

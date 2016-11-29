@@ -1,28 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, print_function
+import sys
 import traceback
 from alignment import SegmentAlignment
 
 
-def align_entity(doc, original_text):
+def align_entity(original_text, altered_text, entities):
     """ align annotation with original text
-    :param doc: a document matching document.proto.
-    :type doc: dict
-    :param original_text: the original text
-    :type original_text: str
     """
+    gold_text = list(original_text)
+    altered_text = list(altered_text)
     aligner = SegmentAlignment()
-    altered_text = list(doc.get('text'))
-    original_text = list(original_text)
-    
+
     # base_alginment = Hirschberg, segment_half = True, segment = 50, diff = 50
     aligned_gold, aligned_altered = aligner.align(
-        original_text, altered_text, segment_half=True, base_alignment='Hirschberg')
+        gold_text, altered_text, segment_half=True, base_alignment='Hirschberg')
         
-    original_text = ''.join(original_text)
     alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
 
-    for entity_id, entity in doc.get('entity').items():
+    for entity in entities:
         start = int(entity.get('charStart'))
         end = int(entity.get('charEnd'))
 
@@ -38,7 +34,5 @@ def align_entity(doc, original_text):
                 entity['charEnd'] = alter2gold[end]
         except IndexError:
             traceback.print_exc()
-            print(doc.get('docId'), len(alter2gold), start, end, sep="\t")
+            print(len(alter2gold), start, end, sep="\t", file=sys.stderr)
         entity['entityText'] = original_text[entity.get('charStart'):entity.get('charEnd')+1]
-
-    doc['text'] = original_text

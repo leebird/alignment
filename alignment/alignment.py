@@ -13,8 +13,8 @@ class Alignment(object):
         self.len_b = None
         self.score_null = 5
         self.score_sub = -100
-        self.score_del = -2
-        self.score_ins = -2
+        self.score_del = -3
+        self.score_ins = -3
         self.separator = '|'
         self.mode = Alignment.SCORE_UNIFORM
 

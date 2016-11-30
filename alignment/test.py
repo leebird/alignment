@@ -1,9 +1,10 @@
 from __future__ import unicode_literals, print_function
 from unittest import TestCase
-from alignment import *
-from align import *
 import unittest
 import os
+import codecs
+from alignment import *
+from align import *
 
 
 class TestAlignment(TestCase):
@@ -23,7 +24,9 @@ class TestAlignment(TestCase):
                                                           list(altered_text),
                                                           segment_half=True,
                                                           base_alignment='Hirschberg')
+            score = aligner.score(aligned_gold, aligned_altered)
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+            print(score, score/float(len(original_text)))
 
     def test_segment_align_2(self):
         # found the bug of extra space in original text
@@ -42,8 +45,7 @@ class TestAlignment(TestCase):
             alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
             # print(alter2gold[1515], alter2gold[1525])
             # print(original_text[alter2gold[1515]:alter2gold[1525]])
-            print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
-
+            # print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
 
     def test_segment_align_3(self):
         # Problematic case, not fiexed yet.
@@ -61,9 +63,33 @@ class TestAlignment(TestCase):
                                                           segment_half=True,
                                                           base_alignment='Hirschberg')
             alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
+            score = aligner.score(aligned_gold, aligned_altered)
             # print(alter2gold[1515], alter2gold[1525])
             # print(original_text[alter2gold[1515]:alter2gold[1525]])
             print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+            print(score, score/float(len(original_text)))
+
+    def test_segment_align_4(self):
+        # Problematic case, not fiexed yet.
+        # found the bug of extra space in original text
+        # looks like a bug in brat
+        # try to fix it by using correct original text
+        of = os.path.join(self.path, 'data/27600506.original')
+        af = os.path.join(self.path, 'data/27600506.altered')
+        with codecs.open(of, encoding='utf8') as oh, codecs.open(af, encoding='utf8') as ah:
+            aligner = SegmentAlignment()
+            original_text = oh.read().lower()
+            altered_text = ah.read().lower()
+            aligned_gold, aligned_altered = aligner.align(list(original_text),
+                                                          list(altered_text),
+                                                          segment_half=True,
+                                                          base_alignment='Hirschberg')
+            alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
+            score = aligner.score(aligned_gold, aligned_altered)
+            # print(alter2gold[1515], alter2gold[1525])
+            # print(original_text[alter2gold[1515]:alter2gold[1525]])
+            print(''.join(aligned_gold), ''.join(aligned_altered), sep='\n')
+            print(score, score/float(len(original_text)))
 
 
 class TestSet(TestCase):

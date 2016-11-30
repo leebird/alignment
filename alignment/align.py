@@ -8,8 +8,8 @@ from alignment import SegmentAlignment
 def align_entity(original_text, altered_text, entities):
     """ align annotation with original text
     """
-    gold_text = list(original_text)
-    altered_text = list(altered_text)
+    gold_text = list(original_text.lower())
+    altered_text = list(altered_text.lower())
     aligner = SegmentAlignment()
 
     # base_alginment = Hirschberg, segment_half = True, segment = 50, diff = 50
@@ -17,6 +17,7 @@ def align_entity(original_text, altered_text, entities):
         gold_text, altered_text, segment_half=True, base_alignment='Hirschberg')
         
     alter2gold = aligner.map_alignment(aligned_gold, aligned_altered)
+    score = aligner.score(aligned_gold, aligned_altered)
 
     for entity in entities:
         start = int(entity.get('charStart'))
@@ -36,3 +37,9 @@ def align_entity(original_text, altered_text, entities):
             traceback.print_exc()
             print(len(alter2gold), start, end, sep="\t", file=sys.stderr)
         entity['entityText'] = original_text[entity.get('charStart'):entity.get('charEnd')+1]
+
+    # 5 should be the highest score, >4 should be OK. Check alignment.py for
+    # score computation. When <4, it means the altered text is too different
+    # from the original one and the result can't be used to align entities.
+    # The threshold 4 is tuned empirically.
+    return score / float(len(original_text))
